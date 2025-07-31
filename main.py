@@ -7,16 +7,17 @@ from pathlib import Path
 from pprint import pprint
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Static, Label, Tree, Button, Input
+from textual.widgets import Static, Label, Tree, Button, Input, SelectionList, Pretty
+from textual.screen import ModalScreen
 
-from rich.pretty import Pretty
+#rom rich.pretty import Pretty
 from typing import Union, TypedDict
-from textual.containers import Vertical, Horizontal
+from textual.containers import Vertical, Horizontal, Container
 from textual.message import Message
 from textual.validation import Function, Number, ValidationResult, Validator
+from textual.widgets.selection_list import Selection
+from textual.events import Mount
 
-
-#path = Path(".")
 
 class Data_format(TypedDict):
     type: str
@@ -31,6 +32,70 @@ class Message_tree_view(Message):
         super().__init__()
         self.path = path_tree
 
+class Tree_ModelScreen(ModalScreen):
+    def __init__(self, data: dict):
+        super().__init__()
+        self.data = data
+        self.perm = data["perm"]
+
+    class Button_perm_list(SelectionList):
+        def __init__(self, role, perms):
+            super().__init__()
+            self.role = role
+            self.perms = perms
+
+
+        def compose(self):
+            yield Label(f"Edit permission for: {self.role}")
+            with Horizontal():
+                yield SelectionList(
+                    *[Selection(prompt=k, value=k) for k in self.perms]
+                )
+                yield Pretty([])
+
+        def on_mount(self):
+            self.query_one(SelectionList).border_title =f"Edit permision{self.name}"
+            self.query_one(Pretty).border_title= "Perm list"
+            
+        #@on(Mount)
+        @on(SelectionList.SelectedChanged)
+        def update_perm(self, event: SelectionList.SelectedChanged) -> None:
+            self.query_one(Pretty).update(self.query_one(SelectionList).selected)
+
+
+    def compose(self):
+        yield Vertical(
+            Label("Tree Model"),
+            Button("save", id="save"),
+            Button("cancel", id="cancel"),
+            *[Button(k, id=k) for k, v in self.data["perm"].items()]
+        )
+        #ini keknya error karena kan i itu dictionary tapi nanti ajalah
+    
+    
+    @on(Button.Pressed)
+    async def perm_button(self, event: Button.Pressed):
+        role = event.button.id
+        if role in ("save","reset"):
+            if role == "cancel":
+                self.dismiss()
+        
+        else:
+            perms = self.perm.get(role)
+            if perms:
+
+                # widget = self.Button_perm_list(perms)
+                await self.mount(self.Button_perm_list(role, perms))
+
+
+    @on(Button.Pressed, "#save")
+    def button_save(self):
+        None
+    
+    @on(Button.Pressed, "#cancel")
+    def button_cancel(self):
+        None
+
 class Message_dir_data(Message): 
     print("message dir daata get")
     def __init__(self, data):
@@ -41,7 +106,7 @@ class Launch_app(Static):
 
     CSS = """
     Launch_app {
-    height: 3; /* Or whatever fits your layout nicely */
+    height: 3;
     }
 
     Input.-valid {
@@ -82,14 +147,14 @@ class Launch_app(Static):
             
         
         if not result.is_valid:
-            input_widget.remove_class("-valid")    # Remove the valid class
+            input_widget.remove_class("-valid")    
             input_widget.add_class("-invalid")
-            print(f"Validation failed: {result.failure_descriptions}")  # Add debug
+            print(f"Validation failed: {result.failure_descriptions}")  
             return
         else:
-            input_widget.remove_class("-invalid") # Remove the invalid class
+            input_widget.remove_class("-invalid") 
             input_widget.add_class("-valid")
-            print(f"Validation passed, sending message for: {input_value}")  # Add debug
+            print(f"Validation passed, sending message for: {input_value}") 
             self.app.post_message(Message_tree_view(Path(input_value)))
 
     @on(Input.Submitted, "#dir_input_user")
@@ -100,54 +165,6 @@ class Launch_app(Static):
     def on_dir_pressed(self, event: Button.Pressed) -> None:
         input_widget = self.query_one("#dir_input_user", Input)
         self._process_input(input_widget)
-
-    # @on(Input.Submitted, "#dir_input_user")
-    # def on_dir_submitted(self, event: Input.Submitted) -> None:
-    #     if event.input.id == "dir_input_user":
-    #         self.path = Path(event.input.value)
-
-
-    # @on(Button.Pressed, "#show_dir_button")
-    # def on_dir_pressed(self, event: Button.Pressed) -> None:
-    #     print("masukkang")
-    #     if event.button.id == "show_dir_button":
-    #         print("masuk sini ")
-    #         input_widget = self.query_one("#dir_input_user", Input)
-    #         input_value = input_widget.value
-    #         # input_value = self.path
-    #         validator = input_widget.validators[0]
-    #         result = validator.validate(input_value)
-    #         if not result.is_valid:
-    #             input_widget.remove_class("-valid")
-    #             input_widget.add_class("-invalid")
-    #             print("hitam ngak valid")
-    #             return
-    #         else:   
-    #             input_widget.remove_class("-invalid")
-    #             input_widget.add_class("-valid")
-    #             print("miawmiaw on on on on on on")
-    #             self.app.post_message(Message_tree_view(Path(input_value)))
-        
-    # def on_input_submitted(self, event: Input.Submitted):
-    #     if event.input.id == "dir_input_user":
-    #         self.path = Path(event.input.value)
-
-    # def on_button_pressed(self, event: Button.Pressed):
-    #     if event.button.id == "show_dir_button":
-    #         input_widget = self.query_one("#dir_input_user", Input)
-    #         input_value = input_widget.value
-    #         # input_value = self.path
-    #         validator = input_widget.validators[0]
-    #         result = validator.validate(input_value)
-    #         if not result.is_valid:
-    #             input_widget.remove_class("-valid")
-    #             input_widget.add_class("-invalid")
-    #             return
-    #         else:
-    #             input_widget.remove_class("-invalid")
-    #             input_widget.add_class("-valid")
-    #             self.app.post_message(Message_tree_view(Path(input_value)))
-
 
     def set_data_dir(self, data):
         self.data = data
@@ -161,17 +178,8 @@ class Launch_app(Static):
                     id="dir_input_user",
                     placeholder="Enter directory path...",
                     validators=[Validator_tree_view()],
-                    validate_on=["submitted", "blur"]  # Only validate when submitted or losing focus
+                    #validate_on=["submitted", "blur"]  # Only validate when submitted or losing focus
                 )
-
-    # @on(Input.Changed)
-    # def show_invalid_reasons(self, event: Input.Changed) -> None:
-    #     """Function to show the error log of the input for the data tree view"""
-    #     # Updating the UI to show the reasons why validation failed
-    #     if not event.validation_result.is_valid:
-    #         self.query_one(Pretty).update(event.validation_result.failure_descriptions)
-    #     else:
-    #         self.query_one(Pretty).update([])
 
 class Show_dir(Static):
     print("go show dir")
@@ -181,7 +189,13 @@ class Show_dir(Static):
         self.chmod_file: str
         self.perm_dict: dict = {}
         self.data_type: str
-        self.tree_perm: Tree = Tree("Permission Tree")
+        self.tree_perm: Tree = Tree(
+            str(path), 
+            data={
+                "name": path,
+                "file_type": "directory", ############################################################
+                "perm": dict
+            })
         self.path: Path = path or Path('.')
 
     def show_tree(self, data_dict=None, parent_node=None):
@@ -189,11 +203,20 @@ class Show_dir(Static):
         if data_dict is None:
             data_dict = self.data  
         if parent_node is None:
+            # self.tree_perm.root.data = hehrehehrehr
             parent_node = self.tree_perm.root  
-
+        
+        print(f'data dict : {data_dict}')
         for key, value in data_dict.items():
             if value["type"] == "file":
-                parent_node.add_leaf(f'{key}')
+                parent_node.add_leaf(
+                    f'{key}', 
+                    data={
+                        "name": key,
+                        "file_type": value["type"],
+                        "perm": value["data"]
+                    }
+                )
             else:
                 new_branch = parent_node.add(f'{key}')
                 if value.get("sub"):  
@@ -253,6 +276,8 @@ class Show_dir(Static):
 
         self.perm_dict = perm_dict
         self.data_type = data_type
+        print("woi ini")
+        print(perm_dict, data_type)
         return perm_dict, data_type
 
     def version_2(self):
@@ -297,13 +322,15 @@ class Show_dir(Static):
                 }
 
                 parent_dict[subdir.name] = node
-                
+
+                #print(node)
+
                 if subdir.is_dir():
                     
                     tree(subdir, node["sub"], current_depth +1, max_depth, max_branch)
                 counts +=1
 
-
+        #print(self.path, self.data)
         tree(self.path, self.data)
 
         # input_widget = self.query_one("#dir_input_user", Input)
@@ -314,6 +341,18 @@ class Show_dir(Static):
         #self.post_message(Message_dir_data(self.data))
 
 
+    @on(Tree.NodeSelected)
+    def on_node_selected(self, event: Tree.NodeSelected):
+        """function to show popup/everlay when a node is clicked for setting and cahnging permission"""
+        # if event.node.data["name"]
+
+        data = event.node.data
+        if data == None:
+            print("no data at node somehow")
+        path = data["name"]
+        file_type = data["file_type"]
+        self.log(f"You selected a {file_type} file at {path}")
+        self.app.push_screen(Tree_ModelScreen(data)) ######################################################
 
     def on_mount(self):
         if hasattr(self, 'path') and self.path:
@@ -324,12 +363,6 @@ class Show_dir(Static):
 
     def compose(self):
         yield self.tree_perm
-
-    # @on(Launch_app.Message_tree_view)
-    # def start(self, message: Launch_app.Message_tree_view) -> None:
-    #     if message:
-    #         self.version_2()
-    #         self.show_tree()
 
 class Validator_tree_view(Validator):
     """class to validate the input sent before they gonna be processed to the next class"""
@@ -362,11 +395,6 @@ class Validator_tree_view(Validator):
     #     self.show_
 
 
-
-
-
-
-
 class Main_app(App):
     CSS_PATH = "main.css"
 
@@ -378,7 +406,6 @@ class Main_app(App):
     def compose(self) -> ComposeResult:
         yield Launch_app()
         yield Vertical(id="main_container")
-        #yield Show_dir()
 
     def on_mount(self):
         self.container = self.query_one("#main_container", Vertical)
@@ -390,20 +417,10 @@ class Main_app(App):
         print("done??")
 
         self.container.remove_children()
+
         show_dir_widget = Show_dir(message.path)
-        # show_dir_widget.version_2()
-        # print("version 2 start")
-        # show_dir_widget.show_tree()
-        # print("show tree fucking star")
 
         self.container.mount(show_dir_widget)
-
-    # @on(Message_dir_data)
-    # def dir_data(self, message: Message_dir_data) -> None:
-
-        
-
-
 
 if __name__ == "__main__":
     app = Main_app()
