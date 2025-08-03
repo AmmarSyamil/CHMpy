@@ -12,17 +12,19 @@ class SelectionListApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
-            yield SelectionList[str](  
-                Selection("Falken's Maze", "secret_back_door", True),
-                Selection("Black Jack", "black_jack"),
-                Selection("Gin Rummy", "gin_rummy"),
-                Selection("Hearts", "hearts"),
-                Selection("Bridge", "bridge"),
-                Selection("Checkers", "checkers"),
-                Selection("Chess", "a_nice_game_of_chess", True),
-                Selection("Poker", "poker"),
-                Selection("Fighter Combat", "fighter_combat", True),
-            )
+            yield SelectionList[int](  
+
+
+            ("Falken's Maze", 0, True),
+            ("Black Jack", 1),
+            ("Gin Rummy", 2),
+            ("Hearts", 3),
+            ("Bridge", 4),
+            ("Checkers", 5),
+            ("Chess", 6, True),
+            ("Poker", 7),
+            ("Fighter Combat", 8, True),
+        )
             yield Pretty([])
         yield Footer()
 

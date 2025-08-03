@@ -1,7 +1,7 @@
 i could change to textual directorytree instead
 
 left out:
-the widget works but not the data, not all widget works, but the main works, not functionabily though but yeah
+make a ascii art at top anddd make the save works!!!!
 
 {
     "activate": {

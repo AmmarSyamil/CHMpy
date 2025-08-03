@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import stat
 import subprocess
-from textual import log, on
+from textual import log, on, events
 from pathlib import Path
 from pprint import pprint
 from textual.app import App, ComposeResult
@@ -12,11 +12,11 @@ from textual.screen import ModalScreen
 
 #rom rich.pretty import Pretty
 from typing import Union, TypedDict
-from textual.containers import Vertical, Horizontal, Container
+from textual.containers import Vertical, Horizontal, Container, Grid
 from textual.message import Message
 from textual.validation import Function, Number, ValidationResult, Validator
 from textual.widgets.selection_list import Selection
-from textual.events import Mount
+from textual.events import Mount, Click
 
 
 class Data_format(TypedDict):
@@ -32,69 +32,193 @@ class Message_tree_view(Message):
         super().__init__()
         self.path = path_tree
 
+class Chmod_converter(Static):
+    """class to convert the list of permission like user [write,execute] into chmod format like 666"""
+    def __init__(self, data):
+        print("masuk def innit chmod converter")
+        super().__init__()
+        self.data = data
+        self.chmod_val: int
+
+    def converter(self, perm):
+        """function to convert the permission into chmod format"""
+        mapping = {"read": 4, "write":2, "execute":1}
+        return sum(mapping[p] for p in perm if p in mapping )
+    
+    def apply_converter(self):
+        print("on apply converter chmod converter")
+        data = self.data["perm"]
+
+        if data["owner"]:
+            owner = data["owner"]
+        else:
+            owner = []
+
+        if data["group"]:
+            group = data["group"]
+        else:
+            group = []
+
+        if data["others"]:
+            other = data["others"]
+        else:
+            other = []
+
+        owner_chmod = self.converter(owner)   
+        group_chmod = self.converter(group)
+        other_chmod = self.converter(other)
+        filepath = Path(self.data["name"])
+
+        self.chmod_val = int(f"{owner_chmod}{group_chmod}{other_chmod}", 8)
+        os.chmod(filepath, self.chmod_val)
+        print(f"Os chmod {self.chmod_val}")
+    
+    def on_mount(self):
+        print("on mount chmod converter")
+        self.apply_converter()
+
+
+
+class Button_perm_list(ModalScreen):
+    """The class of modalscreen to cahnge the permission of the file and the user/group we want to edit via overlay"""
+    def __init__(self, role, perms):
+        super().__init__()
+        self.role = role
+        self.perms = perms
+        if "read" in self.perms:
+            self.read = True
+        else:
+            self.read = False
+        if "write" in self.perms:
+            self.write = True
+        else:
+            self.write = False
+        if "execute" in self.perms:
+            self.execute = True
+        else:
+            self.execute = False
+        
+        print(f"this is the double modal: {self.role} {self.perms}")
+        #this is the double modal: owner ['read', 'write']
+
+
+    def compose(self):
+            print(f"data of the selection list:{self.perms}")
+            yield Vertical(
+                Label(f"Edit permission for: {self.role} {self.perms}"),
+                Pretty([self.perms], id="pretty"),
+
+                SelectionList(
+                    Selection(prompt="read", value="read", initial_state=self.read),
+                    Selection(prompt="write", value="write", initial_state=self.write),
+                    Selection(prompt="execute", value="execute", initial_state=self.execute)
+                    # *[
+                    #     Selection(prompt=perm, value=perm, initial_state=perm)
+                    #     for perm in ["read", "write", "execute"]
+                    #     if perm in self.perms
+                    # ],
+                ),
+                Horizontal(
+                    Button("Save", id="save_button", variant="success"),
+                    Button("Cancel", id="cancel", variant="warning"),
+                    id="container_butten_perm_list_button"
+                ),
+                id="selection"
+            )
+
+    def on_mount(self):
+        
+        self.query_one("#selection").border_title =f"Edit permision{self.role}"
+        self.query_one("#pretty").border_title= "Perm list"
+        
+    #@on(Mount)
+    @on(SelectionList.SelectedChanged)
+    def update_perm(self, event: SelectionList.SelectedChanged) -> None:
+        self.query_one(Pretty).update(self.query_one(SelectionList).selected)
+        self.perms = self.query_one(SelectionList).selected
+
+    @on(Button.Pressed)
+    def save(self, event: Button.Pressed):
+        if event.button.id == "save_button":
+            self.dismiss([self.perms, self.role])
+        else:
+            self.dismiss()
+
+    async def on_click(self, event: Click):
+        """function to close the overlay/modal screen when click outside"""
+        close = self.query_one("#selection")
+        if not close.region.contains(int(event.screen_x), int(event.screen_y)):
+            self.dismiss([self.perms, self.role])
+            event.stop()
+
 class Tree_ModelScreen(ModalScreen):
+    """Classes of modalscreen to show overlay of setting of the node of the tree user pressed"""
     def __init__(self, data: dict):
         super().__init__()
         self.data = data
         self.perm = data["perm"]
+        print(f'slf data tree modal screen: {self.data}, {self.perm}')
+        # {'name': 'mmain2.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}},
+        # {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}
 
-    class Button_perm_list(SelectionList):
-        def __init__(self, role, perms):
-            super().__init__()
-            self.role = role
-            self.perms = perms
-
-
-        def compose(self):
-            yield Label(f"Edit permission for: {self.role}")
-            with Horizontal():
-                yield SelectionList(
-                    *[Selection(prompt=k, value=k) for k in self.perms]
-                )
-                yield Pretty([])
-
-        def on_mount(self):
-            self.query_one(SelectionList).border_title =f"Edit permision{self.name}"
-            self.query_one(Pretty).border_title= "Perm list"
-            
-        #@on(Mount)
-        @on(SelectionList.SelectedChanged)
-        def update_perm(self, event: SelectionList.SelectedChanged) -> None:
-            self.query_one(Pretty).update(self.query_one(SelectionList).selected)
+    def on_mount(self):
+        # self.capture_mouse(True)
+        None
 
 
     def compose(self):
         yield Vertical(
-            Label("Tree Model"),
-            Button("save", id="save"),
-            Button("cancel", id="cancel"),
-            *[Button(k, id=k) for k, v in self.data["perm"].items()]
+            Label(f"Tree Model : {self.data["name"]}", id="title_modal1"),
+            *[Button(f'{k}: {v}', id=k) for k, v in self.perm.items()],
+            Button(f"save", id="save", variant="success"),
+            Button(f"cancel", id="cancel", variant="warning"),
+            id="tree_model"
         )
         #ini keknya error karena kan i itu dictionary tapi nanti ajalah
     
-    
+    def save_data(self, data):
+        if not data:
+            return
+        print(f"data is saves{data}") #data is saves[['read', 'write', 'execute'], 'owner']
+        role = data[1]
+        print(self.data) #{'name': 'main4.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}, 'owner': ['read', 'write','execute']}
+        self.data["perm"][role] = data[0]
+        print(self.data)
+
     @on(Button.Pressed)
     async def perm_button(self, event: Button.Pressed):
         role = event.button.id
-        if role in ("save","reset"):
+        print("mausk kedengar button")
+        print(role)
+        print(role)
+        if role == 'save' or role == 'cancel':
+            print("masuk if pertama")
+            # self.dismiss()
             if role == "cancel":
+                print("pressed cancel button but cant dismmiss")
                 self.dismiss()
+            else:
+                print("pressed save button")
+                self.app.mount(Chmod_converter(self.data), after=self)
+                self.dismiss() ######################################################################
         
         else:
             perms = self.perm.get(role)
+            print(f'perms {perms}')
             if perms:
-
                 # widget = self.Button_perm_list(perms)
-                await self.mount(self.Button_perm_list(role, perms))
+                print('keknya bisa masuk perms sih')
+                self.app.push_screen(Button_perm_list(role, perms), self.save_data)
+                #self.app.push_screen(Tree_ModelScreen(data))
+            print("kagak ada perms cuyy")
 
 
-    @on(Button.Pressed, "#save")
-    def button_save(self):
-        None
-    
-    @on(Button.Pressed, "#cancel")
-    def button_cancel(self):
-        None
+    async def on_click(self, event: Click):
+        """function to close the overlay/modal screen when click outside"""
+        close = self.query_one("#tree_model")
+        if not close.region.contains(int(event.screen_x), int(event.screen_y)):
+            self.dismiss(0)
+            event.stop()
 
 class Message_dir_data(Message): 
     print("message dir daata get")
@@ -112,9 +236,6 @@ class Launch_app(Static):
     Input.-valid {
         border: tall $success 60%;
     }
-    Input.-valid {
-        border: tall $success 60%;
-    }
     Input.-valid:focus {
         border: tall $success;
     }
@@ -124,6 +245,7 @@ class Launch_app(Static):
     Input.-invalid:focus {
         border: tall $error;
     }
+
     
     """
         
@@ -171,9 +293,9 @@ class Launch_app(Static):
 
     def compose(self):
         with Vertical():
-            yield Label("📁 Start CHMpy", id="title_label")
+            yield Label("Edit file permission", id="title_label")
             with Horizontal():
-                yield Button("✔ Load", id="show_dir_button")
+                yield Button("Load", id="show_dir_button", variant="default" )
                 yield Input(
                     id="dir_input_user",
                     placeholder="Enter directory path...",
@@ -189,14 +311,24 @@ class Show_dir(Static):
         self.chmod_file: str
         self.perm_dict: dict = {}
         self.data_type: str
+
+
+        # For main tree part
+        mode = path.stat().st_mode
+        permissions = stat.filemode(mode)
+        perm_dict, file_type = self.get_permissions(permissions)
+        root_perms = {role: perm_dict[role]["data"] for role in perm_dict}
+
+
         self.tree_perm: Tree = Tree(
             str(path), 
             data={
                 "name": path,
-                "file_type": "directory", ############################################################
-                "perm": dict
+                "file_type": file_type, ############################################################
+                "perm": root_perms
             })
         self.path: Path = path or Path('.')
+        self.tree_perm.root.expand()
 
     def show_tree(self, data_dict=None, parent_node=None):
         print("masuk show tree function")
@@ -218,7 +350,14 @@ class Show_dir(Static):
                     }
                 )
             else:
-                new_branch = parent_node.add(f'{key}')
+                new_branch = parent_node.add(
+                    f'{key}',
+                    data={
+                        "name": key,
+                        "file_type": value["type"],
+                        "perm": value["data"]
+                    }
+                    )
                 if value.get("sub"):  
                     self.show_tree(value["sub"], new_branch)
 
@@ -290,7 +429,7 @@ class Show_dir(Static):
             
             #print(f'dir get {dir_get}')
             dir = Path(dir_get)
-            #print(f'dir {dir}')
+            print(f'dir version 2{dir}') #dir version 2.
             if dir.name.startswith(".") and dir.name != "." or dir.name in {"__pycache__", ".venv", "venv", ".git"}:
                 return
             counts = 0
@@ -349,6 +488,7 @@ class Show_dir(Static):
         data = event.node.data
         if data == None:
             print("no data at node somehow")
+        print(f"data node {data}")
         path = data["name"]
         file_type = data["file_type"]
         self.log(f"You selected a {file_type} file at {path}")
@@ -362,7 +502,10 @@ class Show_dir(Static):
             print("path not set yet")
 
     def compose(self):
-        yield self.tree_perm
+        with Container(id="treelist"):
+            yield self.tree_perm
+
+        
 
 class Validator_tree_view(Validator):
     """class to validate the input sent before they gonna be processed to the next class"""
@@ -396,7 +539,7 @@ class Validator_tree_view(Validator):
 
 
 class Main_app(App):
-    CSS_PATH = "main.css"
+    CSS_PATH = "main.tcss"
 
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit", priority=True, show=False),
@@ -404,11 +547,13 @@ class Main_app(App):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Launch_app()
-        yield Vertical(id="main_container")
+        with Container(id="main_body"):
+            yield Launch_app()  
+            yield Vertical(id="main_container")
 
     def on_mount(self):
         self.container = self.query_one("#main_container", Vertical)
+        self.theme = "nord"
 
     @on(Message_tree_view)
     def show_dir_view(self, message: Message_tree_view) -> None:
