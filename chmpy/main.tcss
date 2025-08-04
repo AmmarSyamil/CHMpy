@@ -5,11 +5,21 @@ App {
 
 /* Launch_app widget styling */
 Launch_app {
-  height: 20%;
+  height: 8;
+  min-height: 8;
   # padding: 1;
   background: $surface-darken-1;
   border: round $accent;
   margin: 1;
+  align: center top;
+}
+
+#lauch_app_container {
+  align: center top;
+}
+
+#owner {
+  align: right bottom;
 }
 
 #title_label {

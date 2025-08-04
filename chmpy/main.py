@@ -7,7 +7,7 @@ from pathlib import Path
 from pprint import pprint
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Static, Label, Tree, Button, Input, SelectionList, Pretty
+from textual.widgets import Static, Label, Tree, Button, Input, SelectionList, Pretty, Footer, Header
 from textual.screen import ModalScreen
 
 #rom rich.pretty import Pretty
@@ -18,6 +18,14 @@ from textual.validation import Function, Number, ValidationResult, Validator
 from textual.widgets.selection_list import Selection
 from textual.events import Mount, Click
 
+from art import *
+
+
+#setup ascii art
+
+art = text2art("CHMpy")
+# art = "miaw"
+
 
 class Data_format(TypedDict):
     type: str
@@ -27,7 +35,7 @@ class Data_format(TypedDict):
 Data_model = dict[str, Data_format]
 
 class Message_tree_view(Message):
-    print("dapet pesang kagn")
+    # print("dapet pesang kagn")
     def __init__(self, path_tree):
         super().__init__()
         self.path = path_tree
@@ -168,7 +176,7 @@ class Tree_ModelScreen(ModalScreen):
 
     def compose(self):
         yield Vertical(
-            Label(f"Tree Model : {self.data["name"]}", id="title_modal1"),
+            Label(f"Tree Model : {self.data['name']}", id="title_modal1"),
             *[Button(f'{k}: {v}', id=k) for k, v in self.perm.items()],
             Button(f"save", id="save", variant="success"),
             Button(f"cancel", id="cancel", variant="warning"),
@@ -221,7 +229,7 @@ class Tree_ModelScreen(ModalScreen):
             event.stop()
 
 class Message_dir_data(Message): 
-    print("message dir daata get")
+    # print("message dir daata get")
     def __init__(self, data):
         super().__init__()
         self.data = data
@@ -271,11 +279,14 @@ class Launch_app(Static):
         if not result.is_valid:
             input_widget.remove_class("-valid")    
             input_widget.add_class("-invalid")
-            print(f"Validation failed: {result.failure_descriptions}")  
+            print(f"Validation failed: {result.failure_descriptions}")
+            # s = self.query_one("#dir_input_user")
+            input_widget.border_subtitle="invalid"
             return
         else:
             input_widget.remove_class("-invalid") 
             input_widget.add_class("-valid")
+            input_widget.border_subtitle=""
             print(f"Validation passed, sending message for: {input_value}") 
             self.app.post_message(Message_tree_view(Path(input_value)))
 
@@ -292,8 +303,8 @@ class Launch_app(Static):
         self.data = data
 
     def compose(self):
-        with Vertical():
-            yield Label("Edit file permission", id="title_label")
+        with Vertical(id="lauch_app_container"):
+            yield Label(f"Edit file permission for: {}", id="title_label")
             with Horizontal():
                 yield Button("Load", id="show_dir_button", variant="default" )
                 yield Input(
@@ -304,14 +315,13 @@ class Launch_app(Static):
                 )
 
 class Show_dir(Static):
-    print("go show dir")
+    # print("go show dir")
     def __init__(self, path: Path = None):
         super().__init__()
         self.data : Data_model = {}
         self.chmod_file: str
         self.perm_dict: dict = {}
         self.data_type: str
-
 
         # For main tree part
         mode = path.stat().st_mode
@@ -509,7 +519,7 @@ class Show_dir(Static):
 
 class Validator_tree_view(Validator):
     """class to validate the input sent before they gonna be processed to the next class"""
-    print("validator masuk")
+    # print("validator masuk")
     # def __init__(self, data):
     #     super().__init__()
     #     self.data = data
@@ -547,9 +557,14 @@ class Main_app(App):
     ]
 
     def compose(self) -> ComposeResult:
+        yield Label(art, id="ascii")
         with Container(id="main_body"):
             yield Launch_app()  
             yield Vertical(id="main_container")
+        yield Label("made by SP", id="owner")
+        yield Footer()
+        yield Header()
+        
 
     def on_mount(self):
         self.container = self.query_one("#main_container", Vertical)
@@ -566,6 +581,14 @@ class Main_app(App):
         show_dir_widget = Show_dir(message.path)
 
         self.container.mount(show_dir_widget)
+
+#function to start the App externaly:
+
+def main():
+    """function to start the app"""
+    app = Main_app()
+    app.run()
+
 
 if __name__ == "__main__":
     app = Main_app()
