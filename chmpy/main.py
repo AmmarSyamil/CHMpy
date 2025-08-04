@@ -21,10 +21,14 @@ from textual.events import Mount, Click
 from art import *
 
 
-#setup ascii art
+#setup ascii art and description
 
 art = text2art("CHMpy")
-# art = "miaw"
+TEXT = """\
+CHMpy-sp is a python TUI made from Textual for changing file/folder permission in Linux easily. 
+For usage guide, pressed ctrl+t to show user guide.
+"""
+
 
 
 class Data_format(TypedDict):
@@ -36,9 +40,11 @@ Data_model = dict[str, Data_format]
 
 class Message_tree_view(Message):
     # print("dapet pesang kagn")
-    def __init__(self, path_tree):
+    def __init__(self, path, max_branch, max_depth):
         super().__init__()
-        self.path = path_tree
+        self.path = path
+        self.max_branch = max_branch
+        self.max_depth = max_depth
 
 class Chmod_converter(Static):
     """class to convert the list of permission like user [write,execute] into chmod format like 666"""
@@ -191,7 +197,18 @@ class Tree_ModelScreen(ModalScreen):
         role = data[1]
         print(self.data) #{'name': 'main4.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}, 'owner': ['read', 'write','execute']}
         self.data["perm"][role] = data[0]
-        print(self.data)
+        print("need now niga")
+        print(self.data) #{'name': 'main.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write', execute']}}
+        print(self.data["perm"]) #{'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write', 'execute']}
+
+        #for updating the button
+        for k,v in self.data["perm"].items():
+            button = self.query_one(f'#{k}', Button)
+            button.label = str(v)
+            button.refresh() 
+
+        
+            
 
     @on(Button.Pressed)
     async def perm_button(self, event: Button.Pressed):
@@ -238,9 +255,38 @@ class Launch_app(Static):
 
     CSS = """
     Launch_app {
-    height: 3;
+        height: auto;
+        min-height: 15;
     }
 
+    #lauch_app_container {
+        align: center top;
+    }
+
+    #settings_row {
+        height: auto;
+        margin-top: 1;
+        align: center top;
+    }
+
+    .settings_group {
+        width: 1fr;
+        margin-right: 1;
+    }
+
+    .settings_group:last-child {
+        margin-right: 0;
+    }
+
+    .settings_label {
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #settings_row Input {
+        width: 100%;
+    }
+    
     Input.-valid {
         border: tall $success 60%;
     }
@@ -253,7 +299,6 @@ class Launch_app(Static):
     Input.-invalid:focus {
         border: tall $error;
     }
-
     
     """
         
@@ -265,30 +310,66 @@ class Launch_app(Static):
     def on_mount(self):
         None
 
-    def _process_input(self, input_widget: Input) -> None:
-        input_value = input_widget.value.strip()
-
-        if not input_widget.validators:
-            print("no validator")
-            return
+    def _validate_all_inputs(self) -> bool:
+        """Validate all inputs and return True if all are valid"""
+        all_valid = True
         
-        validator = input_widget.validators[0]
-        result = validator.validate(input_value)
+        # Validate directory input
+        dir_input = self.query_one("#dir_input_user", Input)
+        dir_validator = dir_input.validators[0]
+        dir_result = dir_validator.validate(dir_input.value)
+        self._update_input_validation(dir_input, dir_result)
+        if not dir_result.is_valid:
+            all_valid = False
             
-        
+        # Validate max branch input
+        branch_input = self.query_one("#input_max_branch", Input)
+        branch_validator = branch_input.validators[0]
+        branch_result = branch_validator.validate(branch_input.value)
+        self._update_input_validation(branch_input, branch_result)
+        if not branch_result.is_valid:
+            all_valid = False
+            
+        # Validate max depth input
+        depth_input = self.query_one("#input_max_depth", Input)
+        depth_validator = depth_input.validators[0]
+        depth_result = depth_validator.validate(depth_input.value)
+        self._update_input_validation(depth_input, depth_result)
+        if not depth_result.is_valid:
+            all_valid = False
+            
+        return all_valid
+
+    def _update_input_validation(self, input_widget: Input, result: ValidationResult) -> None:
+        """Update input styling based on validation result"""
         if not result.is_valid:
             input_widget.remove_class("-valid")    
             input_widget.add_class("-invalid")
-            print(f"Validation failed: {result.failure_descriptions}")
-            # s = self.query_one("#dir_input_user")
-            input_widget.border_subtitle="invalid"
-            return
+            input_widget.border_subtitle = result.failure_descriptions[0] if result.failure_descriptions else "Invalid"
         else:
             input_widget.remove_class("-invalid") 
             input_widget.add_class("-valid")
-            input_widget.border_subtitle=""
-            print(f"Validation passed, sending message for: {input_value}") 
-            self.app.post_message(Message_tree_view(Path(input_value)))
+            input_widget.border_subtitle = ""
+
+    def _process_input(self, input_widget: Input) -> None:
+        if not self._validate_all_inputs():
+            return
+        
+        max_branch = self.query_one("#input_max_branch", Input).value
+        max_depth = self.query_one("#input_max_depth", Input).value
+        input_value = input_widget.value.strip()
+        
+            
+        self.app.post_message(Message_tree_view(
+            path=Path(input_value),
+            max_branch=int(max_branch),
+            max_depth=int(max_depth)
+        ))
+
+    @on(Input.Changed, "#dir_input_user, #input_max_branch, #input_max_depth")
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """validate inpute as they change"""
+        self._validate_all_inputs()
 
     @on(Input.Submitted, "#dir_input_user")
     def on_dir_submitted(self, event: Input.Submitted) -> None:
@@ -304,24 +385,46 @@ class Launch_app(Static):
 
     def compose(self):
         with Vertical(id="lauch_app_container"):
-            yield Label(f"Edit file permission for: {}", id="title_label")
-            with Horizontal():
-                yield Button("Load", id="show_dir_button", variant="default" )
+            yield Label("Edit file permission", id="title_label")
+                
+            with Horizontal(id="container_main_lauch_app_button_input"):
+                yield Button("Load", id="show_dir_button", variant="default")
                 yield Input(
                     id="dir_input_user",
                     placeholder="Enter directory path...",
                     validators=[Validator_tree_view()],
-                    #validate_on=["submitted", "blur"]  # Only validate when submitted or losing focus
                 )
+            
+            with Horizontal(id="settings_row"):
+                with Vertical(classes="settings_group"):
+                    yield Label("Max items per dir:", classes="settings_label")
+                    yield Input(
+                        id="input_max_branch",
+                        value="20",
+                        type="integer",
+                        validators=[Validator_max_branch()],
+                        # validate_on=["changed", "blur"]
+                    )
+                with Vertical(classes="settings_group"):
+                    yield Label("Max depth:", classes="settings_label")
+                    yield Input(
+                        id="input_max_depth",
+                        value="3",
+                        type="integer",
+                        validators=[Validator_max_depth()],
+                        # validate_on=["changed", "blur"]
+                    )
 
 class Show_dir(Static):
     # print("go show dir")
-    def __init__(self, path: Path = None):
+    def __init__(self, path: Path = None, max_depth: int = 3, max_branch: int = 20):
         super().__init__()
         self.data : Data_model = {}
         self.chmod_file: str
         self.perm_dict: dict = {}
         self.data_type: str
+        self.max_depth = max_depth
+        self.max_branch = max_branch
 
         # For main tree part
         mode = path.stat().st_mode
@@ -430,65 +533,57 @@ class Show_dir(Static):
         return perm_dict, data_type
 
     def version_2(self):
-        """function to return the dicttionary of the dir tree of the given path"""     
-        print("masuk version 2")       
+        """function to return the dicttionary of the dir tree of the given path"""
+        print("masuk version 2")
 
-        def tree(dir_get, parent_dict, current_depth=0, max_depth=3, max_branch=20):
+        def tree(dir_get, parent_dict, current_depth=0, max_depth=self.max_depth, max_branch=self.max_branch):
             if current_depth > max_depth:
                 return
             
-            #print(f'dir get {dir_get}')
-            dir = Path(dir_get)
-            print(f'dir version 2{dir}') #dir version 2.
+            try:
+                dir = Path(dir_get)
+            except Exception as e:
+                print(f"Error creating Path: {e}")
+                return
+                
+            # Skip hidden directories except current directory ('.')
             if dir.name.startswith(".") and dir.name != "." or dir.name in {"__pycache__", ".venv", "venv", ".git"}:
                 return
+            
             counts = 0
 
-            for subdir in dir.iterdir():
-                if counts >= max_branch:
-                    break
-                if subdir.name.startswith("."):
-                    continue
-                
-                mode = subdir.stat().st_mode
-                permissions = stat.filemode(mode)
-                data_get, file_type = self.get_permissions(permissions)
-
-                #print(data_get)
-
-                def itterate_data_get():
-                    miaw = {}
-                    for i in data_get:
-                        something = data_get[i].get("data", [])
-                        miaw.setdefault("data", {})[i] = something
-                    return miaw
-                
-
-                node = {
-                    "type": file_type,
-                    "sub": {},
-                    "data": itterate_data_get()["data"]
-                }
-
-                parent_dict[subdir.name] = node
-
-                #print(node)
-
-                if subdir.is_dir():
+            try:
+                for subdir in dir.iterdir():
+                    if counts >= max_branch:
+                        break
+                    if subdir.name.startswith("."):
+                        continue
                     
-                    tree(subdir, node["sub"], current_depth +1, max_depth, max_branch)
-                counts +=1
+                    try:
+                        mode = subdir.stat().st_mode
+                        permissions = stat.filemode(mode)
+                        data_get, file_type = self.get_permissions(permissions)
 
-        #print(self.path, self.data)
+                        # Create node data
+                        node = {
+                            "type": file_type,
+                            "sub": {},
+                            "data": {role: data_get[role]["data"] for role in data_get}
+                        }
+
+                        parent_dict[subdir.name] = node
+
+                        if subdir.is_dir():
+                            tree(subdir, node["sub"], current_depth + 1, max_depth, max_branch)
+                        counts += 1
+                    except Exception as e:
+                        print(f"Skipping {subdir}: {e}")
+                        continue
+                        
+            except Exception as e:
+                print(f"Error traversing directory: {e}")
+
         tree(self.path, self.data)
-
-        # input_widget = self.query_one("#dir_input_user", Input)
-        # validator = input_widget.validator
-        # if isinstance(validator, Validator_tree_view):
-        #     validator.get_data_dir(self.data)
-
-        #self.post_message(Message_dir_data(self.data))
-
 
     @on(Tree.NodeSelected)
     def on_node_selected(self, event: Tree.NodeSelected):
@@ -505,11 +600,14 @@ class Show_dir(Static):
         self.app.push_screen(Tree_ModelScreen(data)) ######################################################
 
     def on_mount(self):
-        if hasattr(self, 'path') and self.path:
-            self.version_2()
-            self.show_tree()
-        else:
-            print("path not set yet")
+        try:
+            if hasattr(self, 'path') and self.path and self.path.exists():
+                self.version_2()
+                self.show_tree()
+            else:
+                print("Path not set or does not exist")
+        except Exception as e:
+            print(f"Error initializing Show_dir: {e}")
 
     def compose(self):
         with Container(id="treelist"):
@@ -528,14 +626,14 @@ class Validator_tree_view(Validator):
         if self.is_valid(value):
             return self.success()
         else:
-            return self.failure("somethings not right")
+            return self.failure("Invalid directory path")
         
     # def get_data_dir(self, input_data):
     #     self.data = input_data
 
     @staticmethod
-    def is_valid(value: str) -> bool:  # Fixed typo
-        if not value or value.isspace():  # Empty/whitespace is invalid
+    def is_valid(value: str) -> bool:  
+        if not value or value.isspace():  
             return False
         
         try:
@@ -547,17 +645,72 @@ class Validator_tree_view(Validator):
     # def on_mount(self):
     #     self.show_
 
+class Validator_max_branch(Validator):
+    def validate(self, value: str) -> ValidationResult:
+        try:
+            num_value = int(value)  
+            if self.is_valid(num_value):
+                return self.success()
+            else:
+                return self.failure("Value must be a positive integer")
+        except ValueError:
+            return self.failure("Must be a valid integer")
+        
+
+    @staticmethod
+    def is_valid(value: int) -> bool:  
+        if not value: 
+            return False
+        
+        try:
+            if value < 0 or value == 0:
+                return False
+            
+
+            return True
+        except TypeError: 
+            return False
+
+class Validator_max_depth(Validator):
+    def validate(self, value: str) -> ValidationResult:
+        try:
+            num_value = int(value)  
+            if self.is_valid(num_value):
+                return self.success()
+            else:
+                return self.failure("Value must be a positive integer")
+        except ValueError:
+            return self.failure("Must be a valid integer")
+        
+
+    @staticmethod
+    def is_valid(value: int) -> bool:  
+        if not value: 
+            return False
+        
+        try:
+            if value < 0 or value == 0:
+                return False
+            
+
+            return True
+        except TypeError: 
+            return False
 
 class Main_app(App):
     CSS_PATH = "main.tcss"
 
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit", priority=True, show=False),
-        Binding("ctrl+x", "quit", "Quit", priority=True)
+        Binding("ctrl+x", "quit", "Quit", priority=True),
+        Binding("ctrl+t", action="help", description="miaw", key_display="?")
     ]
 
     def compose(self) -> ComposeResult:
-        yield Label(art, id="ascii")
+        with Horizontal(id="title_container"):
+            yield Label(art, id="ascii")
+            with Container(id="description_container"):
+                yield Label("A simple TUI app for changing file permission.", id="description")
         with Container(id="main_body"):
             yield Launch_app()  
             yield Vertical(id="main_container")
@@ -578,7 +731,11 @@ class Main_app(App):
 
         self.container.remove_children()
 
-        show_dir_widget = Show_dir(message.path)
+        show_dir_widget = Show_dir(
+            path=message.path,
+            max_depth=message.max_depth,
+            max_branch=message.max_branch   
+        )
 
         self.container.mount(show_dir_widget)
 

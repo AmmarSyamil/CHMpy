@@ -1,6 +1,6 @@
-# **CHMpy_sp** ![PyPI - Version](https://img.shields.io/pypi/v/chmpy_sp.svg)  ![License](https://img.shields.io/github/license/AmmarSyamil/CHMpy)
+# **CHMpy-sp** ![PyPI - Version](https://img.shields.io/pypi/v/chmpy_sp.svg)  ![License](https://img.shields.io/github/license/AmmarSyamil/chmpy)
 
-**<1–3‑sentence plain‑language summary of what this package does, who it’s for, and how it fits in the ecosystem>**
+**CHMpy-sp is a python TUI made from Textual for changing file/folder permission in Linux easily. It target for user who is still a beginner using Linux and want to change a file/folder permission without manualy using chmod command.**
 
 ---
 
@@ -10,17 +10,47 @@
 - [Usage](#usage)  
 - [Dependencies / Requirements](#dependencies‑requirements)  
 - [Features](#features)  
-- [Documentation](#documentation)  
 - [Contributing](#contributing)  
-- [Change Log](#change‑log)  
 - [License](#license)  
 - [Author / Maintainer](#author‑maintainer)
+- [Citation](#Citation)
 
 ---
 
 ## Installation
 
 ```bash
-pip install <PROJECT‑NAME>
+pip install pip install chmpy-sp
 # or from GitHub:
-pip install git+https://github.com/<USERNAME>/<PROJECT‑REPO>.git
+pip install git+https://github.com/AmmarSyamil/CHMpy.git
+```
+## Usage
+```bash
+#type in terminal to start the TUI
+chmpy-sp
+```
+
+## Dependencies / Requirements
+- Python 3.8 or higher
+- Textual 0.74.0 or higher
+- Art 6.5 or higher
+
+## Features
+- Change file/folder permission using TUI.
+- See the tree project structure.
+
+## Contributing
+ Report bugs or suggest features via [Github Issues](https://github.com/AmmarSyamil/CHMpy/issues).
+
+## License
+This project is under
+[MIT License](https://github.com/AmmarSyamil/CHMpy/blob/main/LICENSE).
+
+## Author / Maintainer
+Ammar Syaamil (@AmmarSyamil)
+E-mail: ammarsyamil057@gmail.com
+
+## Citation
+If you use this project in your work, please cite it as:
+
+Ammar, Syamil. (2025). *CHMpy-sp* (v0.1.0). https://github.com/AmmarSyamil/CHMpy
