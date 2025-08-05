@@ -10,7 +10,6 @@ from textual.binding import Binding
 from textual.widgets import Static, Label, Tree, Button, Input, SelectionList, Pretty, Footer, Header
 from textual.screen import ModalScreen
 
-#rom rich.pretty import Pretty
 from typing import Union, TypedDict
 from textual.containers import Vertical, Horizontal, Container, Grid
 from textual.message import Message
@@ -27,6 +26,18 @@ art = text2art("CHMpy")
 TEXT = """\
 CHMpy-sp is a python TUI made from Textual for changing file/folder permission in Linux easily. 
 For usage guide, pressed ctrl+t to show user guide.
+"""
+TUTORIAL = """\
+1. To start with, type the directories you want to change permission in the input field. If the one you wanted
+   is the current, you can type "." (dot).
+2. You can change the depth of the tree and the max roots per dir in the other 2 input below the main input.
+3. Pressed enter in the main input or pressed the load button to start making the Tree view of your folder.
+4. You can click which part of your folder(dir/file) you want to change permission, and a popup view will 
+   appear with the current permission of the selected item.
+5. In the popup view, you can click into either owner, group, or other to change the permission of the respective group.
+6. When you click does button, another popup will appears, and you can input the permission you want to change to.
+7. Pressed save button to save the changes.
+8. Done.
 """
 
 
@@ -188,7 +199,6 @@ class Tree_ModelScreen(ModalScreen):
             Button(f"cancel", id="cancel", variant="warning"),
             id="tree_model"
         )
-        #ini keknya error karena kan i itu dictionary tapi nanti ajalah
     
     def save_data(self, data):
         if not data:
@@ -197,7 +207,7 @@ class Tree_ModelScreen(ModalScreen):
         role = data[1]
         print(self.data) #{'name': 'main4.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}, 'owner': ['read', 'write','execute']}
         self.data["perm"][role] = data[0]
-        print("need now niga")
+        
         print(self.data) #{'name': 'main.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write', execute']}}
         print(self.data["perm"]) #{'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write', 'execute']}
 
@@ -256,7 +266,7 @@ class Launch_app(Static):
     CSS = """
     Launch_app {
         height: auto;
-        min-height: 15;
+        min-height: 10;
     }
 
     #lauch_app_container {
@@ -415,6 +425,7 @@ class Launch_app(Static):
                         # validate_on=["changed", "blur"]
                     )
 
+
 class Show_dir(Static):
     # print("go show dir")
     def __init__(self, path: Path = None, max_depth: int = 3, max_branch: int = 20):
@@ -528,7 +539,7 @@ class Show_dir(Static):
 
         self.perm_dict = perm_dict
         self.data_type = data_type
-        print("woi ini")
+    
         print(perm_dict, data_type)
         return perm_dict, data_type
 
@@ -600,6 +611,7 @@ class Show_dir(Static):
         self.app.push_screen(Tree_ModelScreen(data)) ######################################################
 
     def on_mount(self):
+
         try:
             if hasattr(self, 'path') and self.path and self.path.exists():
                 self.version_2()
@@ -613,7 +625,24 @@ class Show_dir(Static):
         with Container(id="treelist"):
             yield self.tree_perm
 
+class Help_screen(ModalScreen):
+    
+    def on_mount(self, event):
         
+        self.query_one("#help_screen").border_title="Tutorial"
+        self.query_one("#help_screen").border_subtitle="Click anywhere to close"
+
+
+    def compose(self):
+        with Container(id="help_screen"):
+            yield Label(TUTORIAL, id="tutorial")
+
+    
+    async def on_click(self, event: Click):
+        """function to close the overlay/modal screen when click outside"""
+        # close = self.query_one("#tree_model")
+        self.dismiss()
+
 
 class Validator_tree_view(Validator):
     """class to validate the input sent before they gonna be processed to the next class"""
@@ -703,14 +732,18 @@ class Main_app(App):
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit", priority=True, show=False),
         Binding("ctrl+x", "quit", "Quit", priority=True),
-        Binding("ctrl+t", action="help", description="miaw", key_display="?")
+        Binding("ctrl+t", "help", description="miaw", key_display="?")
     ]
+
+    def action_help(self):
+        self.app.push_screen(Help_screen())
+        #######################################
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="title_container"):
             yield Label(art, id="ascii")
             with Container(id="description_container"):
-                yield Label("A simple TUI app for changing file permission.", id="description")
+                yield Label(TEXT, id="description")
         with Container(id="main_body"):
             yield Launch_app()  
             yield Vertical(id="main_container")

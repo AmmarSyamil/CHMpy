@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: chmpy-sp
-Version: 0.2.5
+Version: 0.2.6
 Summary: python TUI for chaning file/folder permission
 Author: Ammar Syamil
 Author-email: ammarsyamil057@gmail.com
@@ -40,7 +40,7 @@ Dynamic: summary
 ## Installation
 
 ```bash
-pip install pip install chmpy-sp
+pip install chmpy-sp
 # or from GitHub:
 pip install git+https://github.com/AmmarSyamil/CHMpy.git
 ```

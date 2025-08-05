@@ -20,7 +20,7 @@
 ## Installation
 
 ```bash
-pip install pip install chmpy-sp
+pip install chmpy-sp
 # or from GitHub:
 pip install git+https://github.com/AmmarSyamil/CHMpy.git
 ```
