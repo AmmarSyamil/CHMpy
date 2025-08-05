@@ -53,4 +53,4 @@ E-mail: ammarsyamil057@gmail.com
 ## Citation
 If you use this project in your work, please cite it as:
 
-Ammar, Syamil. (2025). *CHMpy-sp* (v0.1.0). https://github.com/AmmarSyamil/CHMpy
+Ammar, Syamil. (2025). *CHMpy-sp* (<version>). https://github.com/AmmarSyamil/CHMpy
