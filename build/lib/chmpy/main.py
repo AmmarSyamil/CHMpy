@@ -10,7 +10,6 @@ from textual.binding import Binding
 from textual.widgets import Static, Label, Tree, Button, Input, SelectionList, Pretty, Footer, Header
 from textual.screen import ModalScreen
 
-#rom rich.pretty import Pretty
 from typing import Union, TypedDict
 from textual.containers import Vertical, Horizontal, Container, Grid
 from textual.message import Message
@@ -93,7 +92,7 @@ class Chmod_converter(Static):
         owner_chmod = self.converter(owner)   
         group_chmod = self.converter(group)
         other_chmod = self.converter(other)
-        filepath = Path(self.data["name"])
+        filepath = Path(self.data["full_path"])
 
         self.chmod_val = int(f"{owner_chmod}{group_chmod}{other_chmod}", 8)
         os.chmod(filepath, self.chmod_val)
@@ -194,13 +193,12 @@ class Tree_ModelScreen(ModalScreen):
 
     def compose(self):
         yield Vertical(
-            Label(f"Tree Model : {self.data['name']}", id="title_modal1"),
+            Label(f"Change permission for : {self.data['name']}", id="title_modal1"),
             *[Button(f'{k}: {v}', id=k) for k, v in self.perm.items()],
             Button(f"save", id="save", variant="success"),
             Button(f"cancel", id="cancel", variant="warning"),
             id="tree_model"
         )
-        #ini keknya error karena kan i itu dictionary tapi nanti ajalah
     
     def save_data(self, data):
         if not data:
@@ -209,7 +207,7 @@ class Tree_ModelScreen(ModalScreen):
         role = data[1]
         print(self.data) #{'name': 'main4.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}, 'owner': ['read', 'write','execute']}
         self.data["perm"][role] = data[0]
-        print("need now niga")
+        
         print(self.data) #{'name': 'main.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write', execute']}}
         print(self.data["perm"]) #{'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write', 'execute']}
 
@@ -449,9 +447,10 @@ class Show_dir(Static):
         self.tree_perm: Tree = Tree(
             str(path), 
             data={
-                "name": path,
+                "name": str(path),
                 "file_type": file_type, ############################################################
-                "perm": root_perms
+                "perm": root_perms,
+                "full_path": str(path.resolve())
             })
         self.path: Path = path or Path('.')
         self.tree_perm.root.expand()
@@ -472,7 +471,8 @@ class Show_dir(Static):
                     data={
                         "name": key,
                         "file_type": value["type"],
-                        "perm": value["data"]
+                        "perm": value["data"],
+                        "full_path": value.get("full_path", "")
                     }
                 )
             else:
@@ -481,7 +481,8 @@ class Show_dir(Static):
                     data={
                         "name": key,
                         "file_type": value["type"],
-                        "perm": value["data"]
+                        "perm": value["data"],
+                        "full_path": value.get("full_path", "")
                     }
                     )
                 if value.get("sub"):  
@@ -541,7 +542,7 @@ class Show_dir(Static):
 
         self.perm_dict = perm_dict
         self.data_type = data_type
-        print("woi ini")
+    
         print(perm_dict, data_type)
         return perm_dict, data_type
 
@@ -581,7 +582,8 @@ class Show_dir(Static):
                         node = {
                             "type": file_type,
                             "sub": {},
-                            "data": {role: data_get[role]["data"] for role in data_get}
+                            "data": {role: data_get[role]["data"] for role in data_get},
+                            "full_path": str(subdir.resolve())
                         }
 
                         parent_dict[subdir.name] = node
@@ -630,7 +632,7 @@ class Show_dir(Static):
 class Help_screen(ModalScreen):
     
     def on_mount(self, event):
-        print("here chigga")
+        
         self.query_one("#help_screen").border_title="Tutorial"
         self.query_one("#help_screen").border_subtitle="Click anywhere to close"
 
@@ -740,7 +742,6 @@ class Main_app(App):
     def action_help(self):
         self.app.push_screen(Help_screen())
         #######################################
-        print("niga")
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="title_container"):

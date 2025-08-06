@@ -308,7 +308,7 @@ Input.-invalid {
 
 #description_container {
   align: left bottom;
-  height: 4;
+  height: 5.5;
   padding-left: 5;
 }
 
