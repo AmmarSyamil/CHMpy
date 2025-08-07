@@ -1,8 +1,12 @@
 # **CHMpy-sp** ![PyPI - Version](https://img.shields.io/pypi/v/chmpy_sp.svg)  ![License](https://img.shields.io/github/license/AmmarSyamil/chmpy)
 
 **CHMpy-sp is a python TUI made from Textual for changing file/folder permission in Linux easily. It target for user who is still a beginner using Linux and want to change a file/folder permission without manualy using chmod command.**
-
 ---
+![chmpy logo](https://raw.githubusercontent.com/AmmarSyamil/CHMpy/images/image)
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+
 
 ## Table of Contents
 

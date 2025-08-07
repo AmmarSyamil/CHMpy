@@ -1,4 +1,5 @@
 import os
+import copy
 from pathlib import Path
 import stat
 import subprocess
@@ -35,7 +36,7 @@ TUTORIAL = """\
 4. You can click which part of your folder(dir/file) you want to change permission, and a popup view will 
    appear with the current permission of the selected item.
 5. In the popup view, you can click into either owner, group, or other to change the permission of the respective group.
-6. When you click does button, another popup will appears, and you can input the permission you want to change to.
+6. When you click thoes button, another popup will appears, and you can input the permission you want to change to.
 7. Pressed save button to save the changes.
 8. Done.
 """
@@ -109,7 +110,8 @@ class Button_perm_list(ModalScreen):
     def __init__(self, role, perms):
         super().__init__()
         self.role = role
-        self.perms = perms
+        self.original_perms = perms
+        self.perms = copy.copy(perms)
         if "read" in self.perms:
             self.read = True
         else:
@@ -154,6 +156,7 @@ class Button_perm_list(ModalScreen):
     def on_mount(self):
         
         self.query_one("#selection").border_title =f"Edit permision{self.role}"
+        self.query_one("#selection").border_subtitle =f"Dont remove all permission, especially write and execute if you dont wanna be lock out and cant acces the file/folder anymore"
         self.query_one("#pretty").border_title= "Perm list"
         
     #@on(Mount)
@@ -180,8 +183,9 @@ class Tree_ModelScreen(ModalScreen):
     """Classes of modalscreen to show overlay of setting of the node of the tree user pressed"""
     def __init__(self, data: dict):
         super().__init__()
-        self.data = data
-        self.perm = data["perm"]
+        self.original_data = data
+        self.data = copy.deepcopy(data)
+        self.perm = self.data["perm"]
         print(f'slf data tree modal screen: {self.data}, {self.perm}')
         # {'name': 'mmain2.py', 'file_type': 'file', 'perm': {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}},
         # {'owner': ['read', 'write'], 'group': ['read', 'write'], 'others': ['read', 'write']}
@@ -214,7 +218,7 @@ class Tree_ModelScreen(ModalScreen):
         #for updating the button
         for k,v in self.data["perm"].items():
             button = self.query_one(f'#{k}', Button)
-            button.label = str(v)
+            button.label = str(f'{k}: {v}')
             button.refresh() 
 
         
@@ -233,7 +237,7 @@ class Tree_ModelScreen(ModalScreen):
                 print("pressed cancel button but cant dismmiss")
                 self.dismiss()
             else:
-                print("pressed save button")
+                self.original_data["perm"] = copy.deepcopy(self.data["perm"])
                 self.app.mount(Chmod_converter(self.data), after=self)
                 self.dismiss() ######################################################################
         

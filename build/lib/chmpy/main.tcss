@@ -83,6 +83,7 @@ ModalScreen {
   padding: 1 2;
   border: double $accent;
   background: rgba(73, 81, 98, 1);
+  border-subtitle-color: orange;
 }
 
 #selection {
@@ -319,4 +320,13 @@ Input.-invalid {
   border: rgba(0, 0, 0, 1);
   border-title-color: rgba(182, 189, 81, 1);
   border-subtitle-color: rgba(135, 135, 135, 1);
+}
+#warning_label {
+    text-align: center;
+    text-style: bold;
+    height: auto;
+}
+
+Button:disabled {
+    opacity: 0.5;
 }

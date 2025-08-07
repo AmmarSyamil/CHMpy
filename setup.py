@@ -6,7 +6,7 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 setup(
     name='chmpy-sp',
     license="MIT",
-    version='0.2.7',
+    version='0.3.2',
     author="Ammar Syamil",
     author_email="ammarsyamil057@gmail.com",
     include_package_data=True,
